@@ -2,9 +2,11 @@ package main
 
 import (
 	"database/sql"
-	_ "github.com/mattn/go-sqlite3"
+	"fmt"
 	"html/template"
 	"net/http"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type Dance struct {
@@ -18,12 +20,27 @@ var db *sql.DB
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	tpl, err := template.ParseFiles("./html/template/index.html")
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	err = tpl.Execute(w, nil)
+	db, err = sql.Open("sqlite3", "./dance.db")
+
+	var dance Dance
+	err = db.QueryRow("SELECT id, file_name, title, description FROM dance ").Scan(&dance.ID, &dance.FileName, &dance.Title, &dance.Description)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Dance not found", http.StatusNotFound)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+	fmt.Print(dance.Description)
+	err = tpl.Execute(w, dance)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -31,6 +48,9 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+
+	fs := http.FileServer(http.Dir("./static/"))
+	http.Handle("/static/", http.StripPrefix("/static/", fs))
 	http.HandleFunc("/", indexHandler)
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":8082", nil)
 }
