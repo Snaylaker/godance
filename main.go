@@ -4,7 +4,10 @@ import (
 	"database/sql"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
+	"strconv"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -16,21 +19,43 @@ type Dance struct {
 	Description string
 }
 
-var db *sql.DB
+var (
+	db        *sql.DB
+	templates *template.Template
+)
 
-func indexHandler(w http.ResponseWriter, r *http.Request) {
-	tpl, err := template.ParseFiles("./html/template/index.html")
-
+func init() {
+	var err error
+	db, err = sql.Open("sqlite3", "./dance.db")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		log.Fatalf("Failed to connect to the database: %v", err)
 	}
 
-	db, err = sql.Open("sqlite3", "./dance.db")
+	templates = template.Must(template.ParseGlob("./html/template/*.html"))
+	fmt.Println("Parsed Templates:")
+	for _, t := range templates.Templates() {
+		fmt.Println("-", t.Name())
+	}
+}
 
+func main() {
+	fs := http.FileServer(http.Dir("./static/"))
+	http.Handle("/static/", http.StripPrefix("/static/", fs))
+
+	http.HandleFunc("/", indexHandler)
+	http.HandleFunc("PUT /dances/1", editDanceHandler)
+	http.HandleFunc("GET /dances/1/edit", danceHandler)
+
+	log.Println("Starting server on :8080...")
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
+}
+
+func indexHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("indexHandlr")
 	var dance Dance
-	err = db.QueryRow("SELECT id, file_name, title, description FROM dance ").Scan(&dance.ID, &dance.FileName, &dance.Title, &dance.Description)
-
+	err := db.QueryRow("SELECT id, file_name, title, description FROM dance").Scan(&dance.ID, &dance.FileName, &dance.Title, &dance.Description)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Dance not found", http.StatusNotFound)
@@ -39,18 +64,49 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	fmt.Print(dance.Description)
-	err = tpl.Execute(w, dance)
+
+	err = templates.ExecuteTemplate(w, "index.html", dance)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
 
-func main() {
+func danceHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("dancehandler")
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
 
-	fs := http.FileServer(http.Dir("./static/"))
-	http.Handle("/static/", http.StripPrefix("/static/", fs))
-	http.HandleFunc("/", indexHandler)
-	http.ListenAndServe(":8082", nil)
+	path := strings.TrimPrefix(r.URL.Path, "/dances/")
+	idStr := strings.TrimSuffix(path, "/edit")
+	id, err := strconv.Atoi(idStr)
+
+	var dance Dance
+	err = db.QueryRow("SELECT id, file_name, title, description FROM dance WHERE id = ?", id).Scan(&dance.ID, &dance.FileName, &dance.Title, &dance.Description)
+
+	if err != nil {
+		http.Error(w, "Invalid dance ID", http.StatusBadRequest)
+		return
+	}
+
+	err = templates.ExecuteTemplate(w, "editDance.html", dance)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func editDanceHandler(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/dances/")
+	id, _ := strconv.Atoi(path)
+
+	title := r.FormValue("title")
+	description := r.FormValue("description")
+	db.Exec("UPDATE dance SET title = ?, description = ? WHERE id = ?", title, description, id)
+	var dance Dance
+	db.QueryRow("SELECT id, file_name, title, description FROM dance WHERE id = ?", id).Scan(&dance.ID, &dance.FileName, &dance.Title, &dance.Description)
+
+	templates.ExecuteTemplate(w, "danceCard.html", dance)
 }
