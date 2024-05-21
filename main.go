@@ -44,6 +44,7 @@ func main() {
 
 	http.HandleFunc("/", indexHandler)
 	http.HandleFunc("PUT /dances/1", editDanceHandler)
+	http.HandleFunc("GET /dances/1", dancesHandler)
 	http.HandleFunc("GET /dances/1/edit", danceHandler)
 
 	log.Println("Starting server on :8080...")
@@ -53,7 +54,6 @@ func main() {
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("indexHandlr")
 	var dance Dance
 	err := db.QueryRow("SELECT id, file_name, title, description FROM dance").Scan(&dance.ID, &dance.FileName, &dance.Title, &dance.Description)
 	if err != nil {
@@ -96,6 +96,15 @@ func danceHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func dancesHandler(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/dances/")
+	id, _ := strconv.Atoi(path)
+
+	var dance Dance
+	db.QueryRow("SELECT id, file_name, title, description FROM dance WHERE id = ?", id).Scan(&dance.ID, &dance.FileName, &dance.Title, &dance.Description)
+	templates.ExecuteTemplate(w, "danceCard.html", dance)
 }
 
 func editDanceHandler(w http.ResponseWriter, r *http.Request) {
