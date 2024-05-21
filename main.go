@@ -113,6 +113,7 @@ func editDanceHandler(w http.ResponseWriter, r *http.Request) {
 
 	title := r.FormValue("title")
 	description := r.FormValue("description")
+
 	db.Exec("UPDATE dance SET title = ?, description = ? WHERE id = ?", title, description, id)
 	var dance Dance
 	db.QueryRow("SELECT id, file_name, title, description FROM dance WHERE id = ?", id).Scan(&dance.ID, &dance.FileName, &dance.Title, &dance.Description)
