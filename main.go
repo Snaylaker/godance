@@ -63,7 +63,7 @@ func modalHandler(w http.ResponseWriter, r *http.Request) {
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	var dance Dance
-	err := db.Query("SELECT id, file_name, title, description FROM dance").Scan(&dance.ID, &dance.FileName, &dance.Title, &dance.Description)
+	err := db.QueryRow("SELECT id, file_name, title, description FROM dance").Scan(&dance.ID, &dance.FileName, &dance.Title, &dance.Description)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Dance not found", http.StatusNotFound)
@@ -112,7 +112,6 @@ func insertDanceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("hooooodddd")
 	err := r.ParseMultipartForm(10 << 20) // max memory 10MB
 	if err != nil {
 		fmt.Println(err.Error())
@@ -120,10 +119,7 @@ func insertDanceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("hooooo")
-
 	file, handler, err := r.FormFile("video")
-	fmt.Println(file)
 	if err != nil {
 		http.Error(w, "Error retrieving the file", http.StatusInternalServerError)
 		return
