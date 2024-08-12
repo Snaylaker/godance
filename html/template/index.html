@@ -9,24 +9,24 @@
     crossorigin="anonymous"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
-  <title>Go HTML Template Example</title>
+  <title>GoDance</title>
 </head>
 
-<body>
-  <div class="flex min-h-screen flex-col gap-7 bg-gray-100">
+<body class="flex min-h-screen flex-col gap-7 bg-gray-100"> 
+
     <header class="bg-black p-4 text-white">
       <h1 class="m-a text-xl font-bold">GoDance</h1>
     </header>
     <main class="mx-auto flex max-w-screen-xl flex-col gap-4">
-
+    {{ range . }}
       {{template "danceCard.html" . }}
+    {{ end }}
       <button id="showButton" hx-get="/modal" hx-target="#modals-here" hx-trigger="click"
         class="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
         Open Modal
       </button>
       <div id="modals-here" class="relative z-10" aria-labelledby="modal-title" role="dialog" aria-modal="true"></div>
     </main>
-  </div>
 </body>
 
 </html>
